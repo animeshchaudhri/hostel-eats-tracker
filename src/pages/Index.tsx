@@ -72,7 +72,7 @@ const Index = () => {
       <div className="min-h-screen bg-background">
         <div className="border-b bg-card">
           <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 className="text-xl font-semibold">🍽️ Mess Tracker</h1>
+            <h1 className="text-xl font-semibold">🍽️ Dabba Tracker</h1>
             <Button variant="outline" onClick={signOut}>
               Sign Out
             </Button>

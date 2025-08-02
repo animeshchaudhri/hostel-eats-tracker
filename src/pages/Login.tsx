@@ -42,7 +42,7 @@ export default function Login() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-primary">
-            🍽️ Mess Tracker
+            🍽️ Dabba Tracker
           </CardTitle>
           <CardDescription>
             Enter your login code to access your meal tracking dashboard
