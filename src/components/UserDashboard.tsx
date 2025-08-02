@@ -1,191 +1,299 @@
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, MapPin, Calendar, Filter, TrendingUp, TrendingDown } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import apiClient from '@/lib/apiClient';
+import { toast } from '@/hooks/use-toast';
+import { UtensilsCrossed, Calendar, TrendingUp, DollarSign, Eye } from 'lucide-react';
+
+interface User {
+  id: string;
+  name: string;
+  roomNumber: string;
+  loginCode: string;
+  isAdmin: boolean;
+  isActive?: boolean; // Make this optional
+}
 
 interface MealEntry {
-  id: string;
-  date: string;
-  meal: 'breakfast' | 'lunch' | 'dinner';
-  dish: string;
+  _id: string;
+  userId: string;
+  entryDate: string;
+  mealType: string;
+  dishName: string;
   cost: number;
+  userId_populated?: { name: string; roomNumber: string };
 }
 
-interface UserDashboardProps {
-  user: {
-    name: string;
-    room: string;
+export function UserDashboard({ currentUser }: { currentUser: User }) {
+  const [mealEntries, setMealEntries] = useState<MealEntry[]>([]);
+  const [filteredEntries, setFilteredEntries] = useState<MealEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  // Filter states
+  const [selectedMealType, setSelectedMealType] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Safety check for currentUser
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold mb-2">User data not available</h2>
+          <p className="text-muted-foreground">Please try logging in again.</p>
+        </div>
+      </div>
+    );
+  }
+
+  useEffect(() => {
+    fetchMealEntries();
+  }, []);
+
+  useEffect(() => {
+    filterEntries();
+  }, [mealEntries, selectedMealType, dateFrom, dateTo]);
+
+  const filterEntries = () => {
+    let filtered = [...mealEntries]; // Don't filter by userId since backend already returns user-specific entries
+
+    // Meal type filter
+    if (selectedMealType && selectedMealType !== 'all') {
+      filtered = filtered.filter(entry => entry.mealType === selectedMealType);
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      filtered = filtered.filter(entry => new Date(entry.entryDate) >= new Date(dateFrom));
+    }
+    if (dateTo) {
+      filtered = filtered.filter(entry => new Date(entry.entryDate) <= new Date(dateTo));
+    }
+
+    setFilteredEntries(filtered);
   };
-  entries: MealEntry[];
-}
 
-const mealIcons = {
-  breakfast: "🍳",
-  lunch: "🍛", 
-  dinner: "🍽️"
-};
-
-const mealColors = {
-  breakfast: "bg-breakfast-bg border-breakfast-border",
-  lunch: "bg-lunch-bg border-lunch-border", 
-  dinner: "bg-dinner-bg border-dinner-border"
-};
-
-export const UserDashboard = ({ user, entries }: UserDashboardProps) => {
-  const [filterMeal, setFilterMeal] = useState<string>("all");
-  const [timeRange, setTimeRange] = useState<string>("week");
-
-  const totalSpend = entries.reduce((sum, entry) => sum + entry.cost, 0);
-  
-  const filteredEntries = entries.filter(entry => 
-    filterMeal === "all" || entry.meal === filterMeal
-  );
-
-  // Calculate time range totals
-  const now = new Date();
-  const getFilteredByTime = () => {
-    const filtered = entries.filter(entry => {
-      const entryDate = new Date(entry.date);
-      const diffTime = now.getTime() - entryDate.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      if (timeRange === "week") return diffDays <= 7;
-      if (timeRange === "month") return diffDays <= 30;
-      return true;
-    });
-    return filtered.reduce((sum, entry) => sum + entry.cost, 0);
+  const clearFilters = () => {
+    setSelectedMealType('all');
+    setDateFrom('');
+    setDateTo('');
   };
 
-  const timeRangeTotal = getFilteredByTime();
-  const isPositiveTrend = Math.random() > 0.5; // Placeholder for trend calculation
+  const fetchMealEntries = async () => {
+    setLoading(true);
+    try {
+      // Use the general endpoint which returns user's own entries only
+      const response = await apiClient.getMealEntries();
+      setMealEntries(response.entries || []);
+    } catch (error) {
+      console.error('Fetch meal entries error:', error);
+      toast({ title: "Error", description: "Failed to fetch meal entries", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate statistics
+  const totalCost = filteredEntries.reduce((sum, entry) => sum + entry.cost, 0);
+  const thisMonth = new Date().getMonth();
+  const thisMonthEntries = filteredEntries.filter(e => new Date(e.entryDate).getMonth() === thisMonth);
+  const thisMonthCost = thisMonthEntries.reduce((sum, entry) => sum + entry.cost, 0);
+  const avgCostPerMeal = filteredEntries.length > 0 ? totalCost / filteredEntries.length : 0;
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-96">Loading...</div>;
+  }
 
   return (
-    <div className="space-y-6 p-4 max-w-4xl mx-auto">
-      {/* User Profile Card */}
-      <Card className="p-6 bg-gradient-card shadow-card border-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-              <User className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 pb-20 md:pb-4">
+      {/* Header */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{currentUser.name}</h1>
+            <p className="text-sm text-gray-500">Room {currentUser.roomNumber}</p>
+          </div>
+          <div className="bg-blue-50 px-3 py-1 rounded-full">
+            <span className="text-xs font-medium text-blue-700">👤 Student</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 p-2 rounded-lg">
+              <UtensilsCrossed className="h-5 w-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">{user.name}</h1>
-              <div className="flex items-center text-muted-foreground mt-1">
-                <MapPin className="w-4 h-4 mr-1" />
-                <span>Room {user.room}</span>
-              </div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Meals</p>
+              <p className="text-lg font-bold text-gray-900">{filteredEntries.length}</p>
             </div>
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              ₹{totalSpend}
-            </div>
-            <p className="text-sm text-muted-foreground">Total Spend</p>
           </div>
         </div>
 
-        {/* Time Range Summary */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="p-4 bg-secondary rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground capitalize">{timeRange} Total</p>
-                <p className="text-xl font-semibold">₹{timeRangeTotal}</p>
-              </div>
-              {isPositiveTrend ? (
-                <TrendingUp className="w-5 h-5 text-spend-positive" />
-              ) : (
-                <TrendingDown className="w-5 h-5 text-spend-negative" />
-              )}
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-green-50 p-2 rounded-lg">
+              <DollarSign className="h-5 w-5 text-green-600" />
             </div>
-          </div>
-          <div className="p-4 bg-secondary rounded-lg">
             <div>
-              <p className="text-sm text-muted-foreground">Total Meals</p>
-              <p className="text-xl font-semibold">{entries.length}</p>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Total Spent</p>
+              <p className="text-lg font-bold text-gray-900">₹{totalCost.toFixed(0)}</p>
             </div>
           </div>
         </div>
-      </Card>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-50 p-2 rounded-lg">
+              <Calendar className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">This Month</p>
+              <p className="text-lg font-bold text-gray-900">₹{thisMonthCost.toFixed(0)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="bg-orange-50 p-2 rounded-lg">
+              <TrendingUp className="h-5 w-5 text-orange-600" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 uppercase tracking-wide">Avg/Meal</p>
+              <p className="text-lg font-bold text-gray-900">₹{avgCostPerMeal.toFixed(0)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Read-Only Header */}
+      <div className="mb-6">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-4 text-white text-center shadow-lg">
+          <Eye className="h-6 w-6 mx-auto mb-2" />
+          <h2 className="font-semibold text-lg">My Meal History</h2>
+          <p className="text-blue-100 text-sm">View your dining records</p>
+        </div>
+      </div>
+
+      {/* Quick Info Cards */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+          <UtensilsCrossed className="h-6 w-6 text-blue-600 mx-auto mb-2" />
+          <p className="text-xs text-gray-500 mb-1">Today's Meals</p>
+          <p className="text-sm font-bold text-gray-900">
+            {filteredEntries.filter(e => 
+              new Date(e.entryDate).toDateString() === new Date().toDateString()
+            ).length} entries
+          </p>
+        </div>
+        
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 text-center">
+          <Calendar className="h-6 w-6 text-purple-600 mx-auto mb-2" />
+          <p className="text-xs text-gray-500 mb-1">This Week</p>
+          <p className="text-sm font-bold text-gray-900">
+            ₹{filteredEntries.filter(e => {
+              const entryDate = new Date(e.entryDate);
+              const today = new Date();
+              const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
+              return entryDate >= weekStart;
+            }).reduce((sum, entry) => sum + entry.cost, 0).toFixed(0)}
+          </p>
+        </div>
+      </div>
 
       {/* Filters */}
-      <Card className="p-4 shadow-card border-0">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filters</span>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Select value={filterMeal} onValueChange={setFilterMeal}>
-              <SelectTrigger className="w-full sm:w-[140px]">
-                <SelectValue placeholder="Meal type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Meals</SelectItem>
-                <SelectItem value="breakfast">🍳 Breakfast</SelectItem>
-                <SelectItem value="lunch">🍛 Lunch</SelectItem>
-                <SelectItem value="dinner">🍽️ Dinner</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-full sm:w-[120px]">
-                <SelectValue placeholder="Time range" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">This Week</SelectItem>
-                <SelectItem value="month">This Month</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </Card>
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Filter Meals</h3>
+        <div className="space-y-3">
+          <Select value={selectedMealType} onValueChange={setSelectedMealType}>
+            <SelectTrigger className="h-11 rounded-lg">
+              <SelectValue placeholder="All Meals" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Meals</SelectItem>
+              <SelectItem value="breakfast">🍳 Breakfast</SelectItem>
+              <SelectItem value="lunch">🍛 Lunch</SelectItem>
+              <SelectItem value="dinner">🍽️ Dinner</SelectItem>
+            </SelectContent>
+          </Select>
 
-      {/* Meal Entries */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground flex items-center">
-          <Calendar className="w-5 h-5 mr-2" />
-          Daily Food Entries
-        </h2>
-        {filteredEntries.length === 0 ? (
-          <Card className="p-8 text-center shadow-card border-0">
-            <p className="text-muted-foreground">No entries found for the selected filters.</p>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredEntries.map((entry) => (
-              <Card 
-                key={entry.id} 
-                className={`p-4 shadow-card border hover:shadow-hover transition-all duration-300 animate-fade-in ${mealColors[entry.meal]}`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-2xl">{mealIcons[entry.meal]}</span>
-                    <div>
-                      <h3 className="font-medium text-foreground">{entry.dish}</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(entry.date).toLocaleDateString('en-IN', {
-                          weekday: 'short',
-                          month: 'short', 
-                          day: 'numeric'
-                        })}
-                      </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              type="date"
+              placeholder="From Date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="h-11 rounded-lg"
+            />
+            <Input
+              type="date"
+              placeholder="To Date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="h-11 rounded-lg"
+            />
+          </div>
+
+          {(selectedMealType !== 'all' || dateFrom || dateTo) && (
+            <Button 
+              variant="outline" 
+              onClick={clearFilters} 
+              className="w-full h-11 rounded-lg"
+            >
+              Clear Filters
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Meal Entries List */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 mb-6">
+        <div className="p-4 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-900">Recent Meals</h3>
+        </div>
+        
+        <div className="divide-y divide-gray-100">
+          {filteredEntries.length > 0 ? (
+            filteredEntries
+              .sort((a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime())
+              .slice(0, 20) // Show only recent 20 entries for mobile
+              .map((entry) => (
+                <div key={entry._id} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="text-lg">
+                        {entry.mealType === 'breakfast' && '🍳'}
+                        {entry.mealType === 'lunch' && '🍛'}
+                        {entry.mealType === 'dinner' && '🍽️'}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900 text-sm">{entry.dishName}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(entry.entryDate).toLocaleDateString()} • {entry.mealType}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-gray-900">₹{entry.cost.toFixed(0)}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-foreground">₹{entry.cost}</div>
-                    <Badge variant="secondary" className="capitalize text-xs">
-                      {entry.meal}
-                    </Badge>
-                  </div>
                 </div>
-              </Card>
-            ))}
-          </div>
-        )}
+              ))
+          ) : (
+            <div className="p-8 text-center">
+              <UtensilsCrossed className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm mb-2">No meals found</p>
+              <p className="text-gray-400 text-xs">Try adjusting your filters</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
-};
+}

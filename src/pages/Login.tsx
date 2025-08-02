@@ -72,14 +72,6 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
-          
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <p className="text-sm text-muted-foreground text-center">
-              Demo codes: <br />
-              <code className="font-mono">ADMIN123</code> (Admin) <br />
-              <code className="font-mono">ANIM001</code> (Student)
-            </p>
-          </div>
         </CardContent>
       </Card>
     </div>

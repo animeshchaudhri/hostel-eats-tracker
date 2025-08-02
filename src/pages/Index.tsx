@@ -5,7 +5,7 @@ import { DishSummary } from "@/components/DishSummary";
 import { Navigation } from "@/components/Navigation";
 import { AdminDashboard } from "@/components/AdminDashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import apiClient from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 
 interface MealEntry {
@@ -23,7 +23,7 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (hostelUser?.is_admin) {
+    if (hostelUser?.isAdmin) {
       setLoading(false);
       return;
     }
@@ -32,29 +32,23 @@ const Index = () => {
 
   const fetchUserMealEntries = async () => {
     if (!hostelUser) return;
-
+    
+    setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('meal_entries')
-        .select('*')
-        .eq('user_id', hostelUser.id)
-        .order('entry_date', { ascending: false });
+      const response = await apiClient.getUserMealEntries(hostelUser.id);
+      
+      if (response.entries) {
+        // Transform data to match the expected format
+        const transformedEntries: MealEntry[] = response.entries.map((entry: any) => ({
+          id: entry._id,
+          date: entry.entryDate.split('T')[0], // Convert to YYYY-MM-DD format
+          meal: entry.mealType as "breakfast" | "lunch" | "dinner",
+          dish: entry.dishName,
+          cost: entry.cost, // Cost is already in rupees from our backend
+        }));
 
-      if (error) {
-        console.error('Error fetching meal entries:', error);
-        return;
+        setMealEntries(transformedEntries);
       }
-
-      // Transform data to match the expected format
-      const transformedEntries: MealEntry[] = (data || []).map(entry => ({
-        id: entry.id,
-        date: entry.entry_date,
-        meal: entry.meal_type as "breakfast" | "lunch" | "dinner",
-        dish: entry.dish_name,
-        cost: entry.cost / 100, // Convert from paise to rupees
-      }));
-
-      setMealEntries(transformedEntries);
     } catch (error) {
       console.error('Error fetching meal entries:', error);
     } finally {
@@ -73,7 +67,7 @@ const Index = () => {
     );
   }
 
-  if (hostelUser?.is_admin) {
+  if (hostelUser?.isAdmin) {
     return (
       <div className="min-h-screen bg-background">
         <div className="border-b bg-card">
@@ -91,19 +85,19 @@ const Index = () => {
 
   const sampleUser = {
     name: hostelUser?.name || "Student",
-    room: hostelUser?.room_number || "Unknown"
+    room: hostelUser?.roomNumber || "Unknown"
   };
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
-        return <UserDashboard user={sampleUser} entries={mealEntries} />;
+        return <UserDashboard currentUser={hostelUser} />;
       case "daily-log":
         return <DailyLogTable entries={mealEntries} />;
       case "summary":
         return <DishSummary entries={mealEntries} />;
       default:
-        return <UserDashboard user={sampleUser} entries={mealEntries} />;
+        return <UserDashboard currentUser={hostelUser} />;
     }
   };
 

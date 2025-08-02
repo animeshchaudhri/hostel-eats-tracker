@@ -48,7 +48,7 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
       {/* Mobile Navigation */}
       <div className="md:hidden">
         {/* Mobile Menu Button */}
-        <Card className="fixed top-4 right-4 z-20 p-2 shadow-card border-0 bg-gradient-card">
+        {/* <Card className="fixed top-4 right-4 z-50 p-2 shadow-lg border-0 bg-white">
           <Button
             variant="ghost"
             size="sm"
@@ -57,12 +57,12 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
           >
             <Menu className="w-5 h-5" />
           </Button>
-        </Card>
+        </Card> */}
 
         {/* Mobile Menu Overlay */}
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-15 bg-background/80 backdrop-blur-sm">
-            <Card className="absolute top-16 right-4 p-4 shadow-hover border-0 bg-gradient-card min-w-[200px]">
+        {/* {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm">
+            <Card className="absolute top-16 right-4 p-4 shadow-xl border bg-white min-w-[200px]">
               <div className="space-y-2">
                 {navItems.map((item) => {
                   const Icon = item.icon;
@@ -90,10 +90,10 @@ export const Navigation = ({ activeTab, onTabChange }: NavigationProps) => {
               </div>
             </Card>
           </div>
-        )}
+        )} */}
 
         {/* Bottom Tab Bar for Mobile */}
-        <Card className="fixed bottom-0 left-0 right-0 z-10 p-2 shadow-hover border-0 bg-gradient-card rounded-t-xl">
+        <Card className="fixed bottom-0 left-0 right-0 z-30 p-2 shadow-lg border-0 bg-white rounded-t-xl">
           <div className="flex justify-around">
             {navItems.map((item) => {
               const Icon = item.icon;
