@@ -10,6 +10,9 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import mealEntryRoutes from './routes/mealEntries.js';
+import mealPlanRoutes from './routes/mealPlans.js';
+import extraItemRoutes from './routes/extraItems.js';
+import subscriptionRoutes from './routes/subscriptions.js';
 
 // Load environment variables
 dotenv.config();
@@ -74,6 +77,9 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/meal-entries', mealEntryRoutes);
+app.use('/api/meal-plans', mealPlanRoutes);
+app.use('/api/extra-items', extraItemRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Global error handler
 app.use((error, req, res, next) => {

@@ -6,6 +6,11 @@ const mealEntrySchema = new mongoose.Schema({
     ref: 'User',
     required: [true, 'User ID is required']
   },
+  subscriptionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription',
+    default: null // For backwards compatibility and standalone meals
+  },
   entryDate: {
     type: Date,
     required: [true, 'Entry date is required'],
@@ -32,6 +37,47 @@ const mealEntrySchema = new mongoose.Schema({
     min: [0, 'Cost must be a positive number'],
     max: [10000, 'Cost cannot exceed ₹10,000']
   },
+  // Extra items ordered with this meal
+  extraItems: [{
+    itemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ExtraItem',
+      required: true
+    },
+    itemName: {
+      type: String,
+      required: true,
+      trim: true
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: [1, 'Quantity must be at least 1'],
+      default: 1
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: [0, 'Price cannot be negative']
+    },
+    totalCost: {
+      type: Number,
+      required: true,
+      min: [0, 'Total cost cannot be negative']
+    }
+  }],
+  // Type of meal entry
+  entryType: {
+    type: String,
+    enum: ['subscription', 'standalone', 'extra_only'],
+    default: 'standalone'
+  },
+  // Total cost including extras
+  totalCost: {
+    type: Number,
+    required: true,
+    min: [0, 'Total cost cannot be negative']
+  },
   // Additional metadata
   notes: {
     type: String,
@@ -56,13 +102,27 @@ const mealEntrySchema = new mongoose.Schema({
   }
 });
 
+// Pre-save middleware to calculate total cost
+mealEntrySchema.pre('save', function(next) {
+  // Calculate total cost including extras
+  let extrasCost = 0;
+  if (this.extraItems && this.extraItems.length > 0) {
+    extrasCost = this.extraItems.reduce((sum, item) => sum + item.totalCost, 0);
+  }
+  this.totalCost = this.cost + extrasCost;
+  next();
+});
+
 // Compound indexes for efficient queries
 mealEntrySchema.index({ userId: 1, entryDate: -1 });
+mealEntrySchema.index({ subscriptionId: 1 });
 mealEntrySchema.index({ entryDate: -1 });
 mealEntrySchema.index({ mealType: 1 });
 mealEntrySchema.index({ dishName: 1 });
 mealEntrySchema.index({ cost: 1 });
+mealEntrySchema.index({ totalCost: 1 });
 mealEntrySchema.index({ isActive: 1 });
+mealEntrySchema.index({ entryType: 1 });
 
 // Unique constraint to prevent duplicate meals for same user on same date and meal type
 mealEntrySchema.index(
@@ -77,6 +137,12 @@ mealEntrySchema.index(
 // Virtual for formatted date
 mealEntrySchema.virtual('formattedDate').get(function() {
   return this.entryDate.toISOString().split('T')[0];
+});
+
+// Virtual for extras total cost
+mealEntrySchema.virtual('extrasTotalCost').get(function() {
+  if (!this.extraItems || this.extraItems.length === 0) return 0;
+  return this.extraItems.reduce((sum, item) => sum + item.totalCost, 0);
 });
 
 // Static method to get entries for a user
@@ -97,6 +163,8 @@ mealEntrySchema.statics.getEntriesForUser = function(userId, options = {}) {
   
   return this.find(query)
     .populate('userId', 'name roomNumber loginCode')
+    .populate('subscriptionId')
+    .populate('extraItems.itemId')
     .sort({ entryDate: -1, createdAt: -1 });
 };
 
@@ -113,6 +181,8 @@ mealEntrySchema.statics.getAllEntriesWithUsers = function(options = {}) {
   
   return this.find(query)
     .populate('userId', 'name roomNumber loginCode isAdmin')
+    .populate('subscriptionId')
+    .populate('extraItems.itemId')
     .sort({ entryDate: -1, createdAt: -1 });
 };
 

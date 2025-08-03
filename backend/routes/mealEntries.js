@@ -268,7 +268,7 @@ router.get('/:id', authenticateToken, validateObjectId, async (req, res) => {
 // Create new meal entry (admin only)
 router.post('/', authenticateToken, requireAdmin, validateMealEntryCreate, async (req, res) => {
   try {
-    const { userId, entryDate, mealType, dishName, cost, notes } = req.body;
+    const { userId, entryDate, mealType, dishName, cost, notes, extraItems = [] } = req.body;
     
     // Verify user exists
     const user = await User.findById(userId);
@@ -278,6 +278,53 @@ router.post('/', authenticateToken, requireAdmin, validateMealEntryCreate, async
         message: 'User not found or inactive'
       });
     }
+
+    // Check for active subscription that covers this meal type
+    const Subscription = (await import('../models/Subscription.js')).default;
+    const activeSubscription = await Subscription.findOne({
+      userId,
+      status: 'active',
+      startDate: { $lte: new Date(entryDate) },
+      endDate: { $gte: new Date(entryDate) },
+      remainingMeals: { $gt: 0 }
+    }).populate('mealPlanId');
+
+    let entryType = 'standalone';
+    let subscriptionId = null;
+    let mealCost = cost || 0;
+
+    // Check if subscription covers this meal type
+    if (activeSubscription && activeSubscription.mealPlanId.mealTypes.includes(mealType.toLowerCase())) {
+      entryType = 'subscription';
+      subscriptionId = activeSubscription._id;
+      mealCost = 0; // Free for subscription meals
+    }
+
+    // Calculate extra items cost
+    let extraItemsCost = 0;
+    const processedExtraItems = [];
+    
+    if (extraItems && extraItems.length > 0) {
+      const ExtraItem = (await import('../models/ExtraItem.js')).default;
+      
+      for (const item of extraItems) {
+        const extraItem = await ExtraItem.findById(item.itemId);
+        if (extraItem) {
+          const itemTotal = extraItem.price * (item.quantity || 1);
+          extraItemsCost += itemTotal;
+          
+          processedExtraItems.push({
+            itemId: item.itemId,
+            itemName: extraItem.name,
+            quantity: item.quantity || 1,
+            price: extraItem.price,
+            totalCost: itemTotal
+          });
+        }
+      }
+    }
+
+    const totalCost = mealCost + extraItemsCost;
     
     // Create new meal entry
     const entry = new MealEntry({
@@ -285,18 +332,33 @@ router.post('/', authenticateToken, requireAdmin, validateMealEntryCreate, async
       entryDate: new Date(entryDate),
       mealType: mealType.toLowerCase(),
       dishName,
-      cost,
+      cost: mealCost,
+      totalCost,
+      entryType,
+      subscriptionId,
+      extraItems: processedExtraItems,
       notes
     });
-    
+
     await entry.save();
+
+    // If using subscription, decrement remaining meals
+    if (entryType === 'subscription' && activeSubscription) {
+      activeSubscription.remainingMeals -= 1;
+      await activeSubscription.save();
+    }
     
     // Populate user data for response
     await entry.populate('userId', 'name roomNumber loginCode');
     
     res.status(201).json({
-      message: 'Meal entry created successfully',
-      entry
+      message: `Meal entry created successfully${entryType === 'subscription' ? ' (used subscription meal)' : ''}`,
+      entry,
+      subscription: entryType === 'subscription' ? {
+        id: activeSubscription._id,
+        remainingMeals: activeSubscription.remainingMeals,
+        planName: activeSubscription.mealPlanId.name
+      } : null
     });
   } catch (error) {
     console.error('Create meal entry error:', error);
@@ -364,18 +426,18 @@ router.put('/:id', authenticateToken, requireAdmin, validateObjectId, validateMe
 // Delete meal entry (soft delete - admin only)
 router.delete('/:id', authenticateToken, requireAdmin, validateObjectId, async (req, res) => {
   try {
-    const entry = await MealEntry.findById(req.params.id);
+    const entry = await MealEntry.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true, runValidators: false }
+    );
     
-    if (!entry || !entry.isActive) {
+    if (!entry) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'Meal entry not found'
       });
     }
-    
-    // Soft delete
-    entry.isActive = false;
-    await entry.save();
     
     res.status(200).json({
       message: 'Meal entry deleted successfully'
