@@ -142,6 +142,10 @@ class ApiClient {
     return this.get('/users');
   }
 
+  async createUser(userData) {
+    return this.post('/users', userData);
+  }
+
   async getStudents() {
     return this.get('/users/students');
   }
@@ -209,6 +213,78 @@ class ApiClient {
 
   async restoreMealEntry(id) {
     return this.patch(`/meal-entries/${id}/restore`);
+  }
+
+  // Meal Plan methods
+  async getMealPlans() {
+    return this.get('/meal-plans');
+  }
+
+  async getMealPlanById(id) {
+    return this.get(`/meal-plans/${id}`);
+  }
+
+  async createMealPlan(planData) {
+    return this.post('/meal-plans', planData);
+  }
+
+  async updateMealPlan(id, planData) {
+    return this.put(`/meal-plans/${id}`, planData);
+  }
+
+  async deleteMealPlan(id) {
+    return this.delete(`/meal-plans/${id}`);
+  }
+
+  // Extra Items methods
+  async getExtraItems(category = null) {
+    const params = category ? { category } : {};
+    return this.get('/extra-items', params);
+  }
+
+  async getExtraItemById(id) {
+    return this.get(`/extra-items/${id}`);
+  }
+
+  async createExtraItem(itemData) {
+    return this.post('/extra-items', itemData);
+  }
+
+  async updateExtraItem(id, itemData) {
+    return this.put(`/extra-items/${id}`, itemData);
+  }
+
+  async deleteExtraItem(id) {
+    return this.delete(`/extra-items/${id}`);
+  }
+
+  // Subscription methods
+  async getMySubscriptions() {
+    return this.get('/subscriptions/my-subscriptions');
+  }
+
+  async getAllSubscriptions(params = {}) {
+    return this.get('/subscriptions/all', params);
+  }
+
+  async createSubscription(subscriptionData) {
+    return this.post('/subscriptions', subscriptionData);
+  }
+
+  async updateSubscription(id, subscriptionData) {
+    return this.put(`/subscriptions/${id}`, subscriptionData);
+  }
+
+  async cancelSubscription(id) {
+    return this.patch(`/subscriptions/${id}/cancel`);
+  }
+
+  async updateSubscriptionPayment(id, amountPaid) {
+    return this.patch(`/subscriptions/${id}/payment`, { amountPaid });
+  }
+
+  async getSubscriptionStats() {
+    return this.get('/subscriptions/stats');
   }
 }
 

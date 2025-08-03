@@ -3,6 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import Index from "@/pages/Index";
 import Login from "@/pages/Login";
 import NotFound from "@/pages/NotFound";
+import { LandingPage } from "./pages/LandingPage";
+import { AdminSubscriptionManager } from "./components/AdminSubscriptionManager";
+import { SystemTest } from "./components/SystemTest";
 
 function App() {
   const { user, loading } = useAuth();
@@ -21,9 +24,15 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/landing" element={<LandingPage />} />
+      <Route path="/test" element={<SystemTest />} />
       <Route 
         path="/" 
         element={user ? <Index /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/admin/subscriptions" 
+        element={user?.isAdmin ? <AdminSubscriptionManager /> : <Navigate to="/" replace />} 
       />
       <Route path="*" element={<NotFound />} />
     </Routes>
