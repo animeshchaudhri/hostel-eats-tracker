@@ -6,8 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Minus, AlertCircle, CheckCircle, Crown } from 'lucide-react';
+import { Plus, Minus, AlertCircle, CheckCircle, Crown, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import apiClient from '@/lib/apiClient';
 
 interface User {
@@ -55,6 +59,7 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
   const [selectedUserId, setSelectedUserId] = useState('');
   const [mealType, setMealType] = useState('');
   const [dishName, setDishName] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [standalonePrice, setStandalonePrice] = useState(50); // Default meal price
   const [selectedExtras, setSelectedExtras] = useState<Record<string, number>>({});
   
@@ -131,10 +136,10 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedUserId || !mealType || !dishName) {
+    if (!selectedUserId || !mealType || !dishName || !selectedDate) {
       toast({ 
         title: "Missing Information", 
-        description: "Please fill in all required fields", 
+        description: "Please fill in all required fields including date", 
         variant: "destructive" 
       });
       return;
@@ -161,7 +166,7 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
 
       const mealData = {
         userId: selectedUserId,
-        entryDate: new Date().toISOString().split('T')[0],
+        entryDate: selectedDate.toISOString().split('T')[0],
         mealType,
         dishName,
         cost: costs.isSubscriptionCovered ? 0 : standalonePrice,
@@ -175,6 +180,7 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
       setSelectedUserId('');
       setMealType('');
       setDishName('');
+      setSelectedDate(new Date());
       setSelectedExtras({});
       
       toast({ 
@@ -292,6 +298,32 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <Label htmlFor="entryDate">Entry Date *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : <span>Pick a date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => date && setSelectedDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            <div>
               <Label htmlFor="mealType">Meal Type *</Label>
               <Select value={mealType} onValueChange={setMealType}>
                 <SelectTrigger>
@@ -318,17 +350,17 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
                 </div>
               )}
             </div>
+          </div>
 
-            <div>
-              <Label htmlFor="dishName">Dish Name *</Label>
-              <Input
-                id="dishName"
-                value={dishName}
-                onChange={(e) => setDishName(e.target.value)}
-                placeholder="Enter dish name"
-                required
-              />
-            </div>
+          <div>
+            <Label htmlFor="dishName">Dish Name *</Label>
+            <Input
+              id="dishName"
+              value={dishName}
+              onChange={(e) => setDishName(e.target.value)}
+              placeholder="Enter dish name"
+              required
+            />
           </div>
 
           {!costs.isSubscriptionCovered && (
@@ -445,7 +477,7 @@ export function SmartMealEntryForm({ users, onSave, onCancel }: SmartMealEntryFo
         <Button 
           type="submit" 
           className="flex-1" 
-          disabled={loading || !selectedUserId || !mealType || !dishName}
+          disabled={loading || !selectedUserId || !mealType || !dishName || !selectedDate}
         >
           {loading ? 'Adding...' : '✅ Add Meal Entry'}
         </Button>

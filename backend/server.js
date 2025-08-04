@@ -37,13 +37,6 @@ connectDB();
 // Security middleware
 app.use(helmet());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-});
-app.use(limiter);
 
 // CORS configuration
 const corsOptions = {
@@ -52,7 +45,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      'http://localhost:5173',
+      'http://localhost:8080',
       'https://mealmanagement.vercel.app',
       'https://hostel-eats-tracker.vercel.app',
       process.env.CORS_ORIGIN
