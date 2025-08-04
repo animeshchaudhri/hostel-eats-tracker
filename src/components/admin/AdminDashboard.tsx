@@ -217,7 +217,7 @@ export function AdminDashboard() {
   const stats = {
     totalStudents: users.filter(u => !u.isAdmin).length,
     activeSubscriptions: subscriptions.filter(s => s.status === 'active').length,
-    totalRevenue: subscriptions.reduce((sum, s) => sum + (s.amountPaid || 0), 0),
+    totalRevenue: subscriptions.reduce((sum, s) => sum + (s.totalAmount || 0), 0),
     pendingPayments: subscriptions.reduce((sum, s) => sum + Math.max(0, (s.totalAmount || 0) - (s.amountPaid || 0)), 0),
     totalMeals: mealEntries.length,
     subscriptionMeals: mealEntries.filter(m => m.entryType === 'subscription').length,
