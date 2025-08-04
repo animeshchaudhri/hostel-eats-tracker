@@ -380,7 +380,7 @@ router.post('/', authenticateToken, requireAdmin, validateMealEntryCreate, async
 // Update meal entry (admin only)
 router.put('/:id', authenticateToken, requireAdmin, validateObjectId, validateMealEntryUpdate, async (req, res) => {
   try {
-    const { entryDate, mealType, dishName, cost, notes } = req.body;
+    const { entryDate, mealType, dishName, cost, totalCost, notes } = req.body;
     
     const entry = await MealEntry.findById(req.params.id);
     if (!entry || !entry.isActive) {
@@ -395,7 +395,18 @@ router.put('/:id', authenticateToken, requireAdmin, validateObjectId, validateMe
     if (mealType !== undefined) entry.mealType = mealType.toLowerCase();
     if (dishName !== undefined) entry.dishName = dishName;
     if (cost !== undefined) entry.cost = cost;
+    if (totalCost !== undefined) entry.totalCost = totalCost;
     if (notes !== undefined) entry.notes = notes;
+    
+    // If only cost is provided, set totalCost to cost
+    if (cost !== undefined && totalCost === undefined) {
+      entry.totalCost = cost;
+    }
+    
+    // If only totalCost is provided, set cost to totalCost
+    if (totalCost !== undefined && cost === undefined) {
+      entry.cost = totalCost;
+    }
     
     await entry.save();
     

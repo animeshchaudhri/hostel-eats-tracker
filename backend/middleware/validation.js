@@ -173,6 +173,11 @@ export const validateMealEntryUpdate = [
     .isFloat({ min: 0, max: 10000 })
     .withMessage('Cost must be between 0 and 10000'),
   
+  body('totalCost')
+    .optional()
+    .isFloat({ min: 0, max: 10000 })
+    .withMessage('Total cost must be between 0 and 10000'),
+  
   body('notes')
     .optional()
     .trim()
